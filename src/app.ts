@@ -1,5 +1,5 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, User } from "@prisma/client";
 import { validate } from "./helpers.js";
 
 const prisma = new PrismaClient();
@@ -50,6 +50,32 @@ async function main() {
         res.send(users);
     });
 
+    app.patch("/user/:id", async (req, res) => {
+        const { id } = req.params;
+        const { user } = <{ user: User }>req.body;
+
+        if (!user) {
+            return res.status(400).send({
+                message: "Invalid user field",
+            });
+        }
+
+        try {
+            const updatedUser = await prisma.user.update({
+                where: {
+                    id: Number(id),
+                },
+                data: user,
+            });
+            res.status(200).send(updatedUser);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send({
+                message: "segmentation fault 😑",
+            });
+        }
+    });
+
     app.post("/article/:id", async (req, res) => {
         const { id } = req.params;
         const { article } = req.body;
@@ -94,6 +120,45 @@ async function main() {
         }
     });
 
+    app.get("/articles/:userId", async (req, res) => {
+        const { userId } = req.params;
+
+        const user = await prisma.user.findFirst({
+            where: {
+                id: Number(userId),
+            },
+            include: {
+                articles: true,
+            },
+        });
+
+        if (user) {
+            res.send(user.articles);
+        } else {
+            res.status(400).send({
+                message: `No user found with that id`,
+            });
+        }
+    });
+
+    app.delete("/article/:id", async (req, res) => {
+        const { id } = req.params;
+
+        try {
+            const article = await prisma.article.delete({
+                where: {
+                    id: Number(id),
+                },
+            });
+            res.status(200).send(article);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send({
+                message: "segmentation fault 😑",
+            });
+        }
+    });
+
     app.post("/multiroute", async (req, res) => {
         const { user, article } = req.body;
 
@@ -119,6 +184,22 @@ async function main() {
                 },
             });
             res.status(200).send(data);
+        } catch (error) {
+            console.error(error);
+            res.status(500).send({
+                message: "segmentation fault 😑",
+            });
+        }
+    });
+
+    app.get("/users-articles", async (req, res) => {
+        try {
+            const userWithArticles = await prisma.user.findMany({
+                include: {
+                    articles: true,
+                },
+            });
+            res.status(200).send(userWithArticles);
         } catch (error) {
             console.error(error);
             res.status(500).send({
